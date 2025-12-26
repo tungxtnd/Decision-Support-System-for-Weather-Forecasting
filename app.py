@@ -141,43 +141,53 @@ if st.button("🚀 Tạo ngữ cảnh & Dự báo"):
     chart_data['Source'] = ['History']*29 + ['User Input'] # Đánh dấu điểm cuối
     st.line_chart(chart_data)
     
-    # --- 5. PREDICT (GIỐNG CODE CŨ) ---
+    # --- 5. PREDICT (ĐÃ SỬA LỖI LUÔN BÁO MƯA) ---
     
-    # Feature Engineering (Month Sin/Cos)
-    # Lấy tháng từ ngày user chọn
+    # A. Feature Engineering cho Model Regression (Nhiệt độ/Gió...)
+    # Lấy tháng từ ngày user chọn để tính Sin/Cos
     m = user_data['Date'].month
     m_sin = np.sin(2 * np.pi * m / 12)
     m_cos = np.cos(2 * np.pi * m / 12)
     
-    # Gán Month cho cả 30 ngày (Giả định cùng tháng)
-    full_30_days['Month'] = m
+    # Gán các feature này cho cả 30 ngày
     full_30_days['Month_sin'] = m_sin
     full_30_days['Month_cos'] = m_cos
     
-    # Chuẩn bị Input Array
-    # Model Reg (14 features)
+    # Tạo Input cho Regression (14 features: 12 cơ bản + Sin + Cos)
     cols_reg = cols_to_use + ['Month_sin', 'Month_cos']
     X_reg = s_reg_in.transform(full_30_days[cols_reg].values)[np.newaxis, :, :]
     
-    # Model Rain (13 features)
-    cols_rain = cols_to_use + ['Month']
-    X_rain = s_rain.transform(full_30_days[cols_rain].values)[np.newaxis, :, :]
+    # B. Feature Engineering cho Model Mưa (QUAN TRỌNG NHẤT)
+    # Model Mưa cũ không dùng Month, mà dùng RainToday (0 hoặc 1)
+    # Ta tính cột RainToday: Nếu mưa >= 1mm là 1, ngược lại là 0
+    full_30_days['RainToday'] = full_30_days['Rainfall'].apply(lambda x: 1.0 if x >= 1.0 else 0.0)
     
-    # Chạy Model
+    # Tạo Input cho Model Mưa (13 features: 12 cơ bản + RainToday)
+    cols_rain_fixed = cols_to_use + ['RainToday'] # <-- Thay đổi mấu chốt ở đây
+    
+    # Scale và Reshape (Dùng s_rain cũ)
+    X_rain = s_rain.transform(full_30_days[cols_rain_fixed].values)[np.newaxis, :, :]
+    
+    # --- CHẠY MODEL VÀ HIỂN THỊ ---
     col1, col2 = st.columns(2)
     
     with col1:
         st.subheader("🌡️ Dự báo Chỉ số (Ngày mai)")
+        # Dự báo và scale ngược về đơn vị gốc
         pred_vals = s_reg_out.inverse_transform(m_reg.predict(X_reg))
+        
         st.metric("Max Temp", f"{pred_vals[0][0]:.1f} °C")
         st.metric("Humidity", f"{pred_vals[0][1]:.1f} %")
         st.metric("Wind Gust", f"{pred_vals[0][2]:.1f} km/h")
         
     with col2:
         st.subheader("🌧️ Dự báo Mưa (Ngày mai)")
+        # Dự báo xác suất
         prob = m_rain.predict(X_rain)[0][0]
         st.metric("Xác suất mưa", f"{prob*100:.1f}%")
+        
+        # Logic hiển thị
         if prob > 0.5:
-            st.error("DỰ BÁO: CÓ MƯA")
+            st.error("☔ DỰ BÁO: CÓ MƯA (Yes)")
         else:
-            st.success("DỰ BÁO: KHÔNG MƯA")
+            st.success("☀️ DỰ BÁO: KHÔNG MƯA (No)")

@@ -62,6 +62,3 @@ Hệ thống sử dụng cơ chế **Ensemble Models** với kỹ thuật xử l
 * **Timestep:** 30 ngày (hoặc 14 ngày tùy phiên bản).
 * **Nhiệm vụ:** Dự báo các giá trị liên tục (Nhiệt độ, Độ ẩm...).
 *Lưu ý kỹ thuật: Ứng dụng tự động xử lý Data Slicing để đảm bảo dữ liệu đầu vào khớp với Timestep của từng model (Window Sliding).*
-4.  Điền tên thành viên nhóm vào phần cuối cùng.
-
-```
